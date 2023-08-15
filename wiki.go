@@ -1,12 +1,17 @@
 package gowiki
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 )
+
+// validPathExpr is a regular expression for valid paths
+var validPathExpr = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
 
 // cache is a cache of template pages
 var cache = template.Must(template.ParseFiles("views/edit.html", "views/view.html"))
@@ -42,6 +47,15 @@ func Load(title string) (*Page, error) {
 	return &Page{Title: title, Body: body}, nil
 }
 
+func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
+	m := validPathExpr.FindStringSubmatch(r.URL.Path)
+	if m == nil {
+		http.NotFound(w, r)
+		return "", errors.New("Invalid page title")
+	}
+	return m[2], nil
+}
+
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 	templateFile := tmpl + ".html"
 	log.Printf("Render %s %s", tmpl, p.Title)
@@ -52,7 +66,10 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 }
 
 func ViewHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[len("/view/"):]
+	title, err := getTitle(w, r)
+	if err != nil {
+		return
+	}
 	p, err := Load(title)
 	if err != nil {
 		log.Printf("Page not found: %s", title)
@@ -63,7 +80,10 @@ func ViewHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func EditHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[len("/edit/"):]
+	title, err := getTitle(w, r)
+	if err != nil {
+		return
+	}
 	p, err := Load(title)
 	if err != nil {
 		// Create new empty page
@@ -73,7 +93,10 @@ func EditHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func SaveHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[len("/save/"):]
+	title, err := getTitle(w, r)
+	if err != nil {
+		return
+	}
 	body := r.FormValue("body")
 	p := &Page{Title: title, Body: []byte(body)}
 	if err := p.Save(); err != nil {
