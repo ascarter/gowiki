@@ -8,6 +8,9 @@ import (
 	"os"
 )
 
+// cache is a cache of template pages
+var cache = template.Must(template.ParseFiles("views/edit.html", "views/view.html"))
+
 // A Page is a page in the Wiki
 type Page struct {
 	Title string
@@ -40,14 +43,9 @@ func Load(title string) (*Page, error) {
 }
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
-	t, err := template.ParseFiles("views/" + tmpl + ".html")
-	if err != nil {
-		log.Printf("Template %s failed: %v", tmpl, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	templateFile := tmpl + ".html"
 	log.Printf("Render %s %s", tmpl, p.Title)
-	if err := t.Execute(w, p); err != nil {
+	if err := cache.ExecuteTemplate(w, templateFile, p); err != nil {
 		log.Printf("Template %s failed: %v", tmpl, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
