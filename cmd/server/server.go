@@ -15,9 +15,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	// Register handlers
 	http.HandleFunc("/", handler)
-	http.HandleFunc("/view/", gowiki.ViewHandler)
-	http.HandleFunc("/edit/", gowiki.EditHandler)
-	http.HandleFunc("/save/", gowiki.SaveHandler)
+	http.Handle("/view/", gowiki.ViewHandler())
+	http.HandleFunc("/edit/", gowiki.EditHandler())
+	http.HandleFunc("/save/", gowiki.SaveHandler())
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

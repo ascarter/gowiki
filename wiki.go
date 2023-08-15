@@ -1,7 +1,6 @@
 package gowiki
 
 import (
-	"errors"
 	"fmt"
 	"html/template"
 	"log"
@@ -47,15 +46,6 @@ func Load(title string) (*Page, error) {
 	return &Page{Title: title, Body: body}, nil
 }
 
-func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
-	m := validPathExpr.FindStringSubmatch(r.URL.Path)
-	if m == nil {
-		http.NotFound(w, r)
-		return "", errors.New("Invalid page title")
-	}
-	return m[2], nil
-}
-
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 	templateFile := tmpl + ".html"
 	log.Printf("Render %s %s", tmpl, p.Title)
@@ -65,11 +55,18 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 	}
 }
 
-func ViewHandler(w http.ResponseWriter, r *http.Request) {
-	title, err := getTitle(w, r)
-	if err != nil {
-		return
+func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		m := validPathExpr.FindStringSubmatch(r.URL.Path)
+		if m == nil {
+			http.NotFound(w, r)
+			return
+		}
+		fn(w, r, m[2])
 	}
+}
+
+func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := Load(title)
 	if err != nil {
 		log.Printf("Page not found: %s", title)
@@ -79,11 +76,7 @@ func ViewHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "view", p)
 }
 
-func EditHandler(w http.ResponseWriter, r *http.Request) {
-	title, err := getTitle(w, r)
-	if err != nil {
-		return
-	}
+func editHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := Load(title)
 	if err != nil {
 		// Create new empty page
@@ -92,11 +85,7 @@ func EditHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "edit", p)
 }
 
-func SaveHandler(w http.ResponseWriter, r *http.Request) {
-	title, err := getTitle(w, r)
-	if err != nil {
-		return
-	}
+func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	body := r.FormValue("body")
 	p := &Page{Title: title, Body: []byte(body)}
 	if err := p.Save(); err != nil {
@@ -106,4 +95,16 @@ func SaveHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Saved page %s", title)
 	http.Redirect(w, r, "/view/"+title, http.StatusFound)
+}
+
+func ViewHandler() http.HandlerFunc {
+	return makeHandler(viewHandler)
+}
+
+func EditHandler() http.HandlerFunc {
+	return makeHandler(editHandler)
+}
+
+func SaveHandler() http.HandlerFunc {
+	return makeHandler(saveHandler)
 }
