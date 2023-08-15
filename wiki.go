@@ -36,8 +36,8 @@ func (p *Page) Save() error {
 	return os.WriteFile(filename, p.Body, 0600)
 }
 
-// LoadPage loads a page from a file
-func Load(title string) (*Page, error) {
+// loadPage loads a page from a file
+func loadPage(title string) (*Page, error) {
 	filename := pageFilename(title)
 	body, err := os.ReadFile(filename)
 	if err != nil {
@@ -67,7 +67,7 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.Handl
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
-	p, err := Load(title)
+	p, err := loadPage(title)
 	if err != nil {
 		log.Printf("Page not found: %s", title)
 		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
@@ -77,7 +77,7 @@ func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 }
 
 func editHandler(w http.ResponseWriter, r *http.Request, title string) {
-	p, err := Load(title)
+	p, err := loadPage(title)
 	if err != nil {
 		// Create new empty page
 		p = &Page{Title: title}
